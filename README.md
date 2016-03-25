@@ -98,7 +98,7 @@ In addition, the sequences can contain ranges of the form A-Z where A and Z are 
 The underscore character represents an empty sequence element.
 -->
 
-
+<!--
 ###EXAMPLE BINDINGS
 
 ```
@@ -140,9 +140,7 @@ super + alt + control + {h,j,k,l} ; {0-9}
 
 super + alt + p
     scpc config focus_follows_pointer {true,false}
-```
 
-<!--
 super + {_,shift + }{h,j,k,l}
     scpc window {-f,-s} {left,down,up,right}
 
@@ -151,4 +149,5 @@ super + {_,shift + }{h,j,k,l}
 
 ~button1
     scpc pointer -g focus
+```
 -->

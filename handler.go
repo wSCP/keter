@@ -11,11 +11,15 @@ import (
 )
 
 type Handlr interface {
+	Informr
+	Storr
+	Eventr
+}
+
+type Informr interface {
 	Conn() *xgb.Conn
 	Root() xproto.Window
 	Keyboard() *Keyboard
-	Storr
-	Eventr
 }
 
 type Storr interface {
@@ -107,21 +111,13 @@ func parseEvent(e interface{}) (uint16, byte, byte, error) {
 	var err error
 	switch evt := e.(type) {
 	case xproto.KeyPressEvent:
-		s = evt.State
-		d = byte(evt.Detail)
-		err = nil
+		s, d = evt.State, byte(evt.Detail)
 	case xproto.KeyReleaseEvent:
-		s = evt.State
-		d = byte(evt.Detail)
-		err = nil
+		s, d = evt.State, byte(evt.Detail)
 	case xproto.ButtonPressEvent:
-		s = evt.State
-		b = byte(evt.Detail)
-		err = nil
+		s, b = evt.State, byte(evt.Detail)
 	case xproto.ButtonReleaseEvent:
-		s = evt.State
-		b = byte(evt.Detail)
-		err = nil
+		s, b = evt.State, byte(evt.Detail)
 	default:
 		err = ParseEventError(e)
 	}
@@ -224,7 +220,7 @@ func read(h Handlr, block bool) {
 	if block {
 		ev, err := h.Conn().WaitForEvent()
 		if ev == nil && err == nil {
-			Logger.Fatal("BUG: Could not read an event or an error.")
+			l.Fatal("BUG: Could not read an event or an error.")
 		}
 		h.Enqueue(ev, err)
 	}
@@ -259,7 +255,7 @@ func process(h Handlr, before, after chan struct{}) {
 		ev, err := h.Dequeue()
 
 		if err != nil {
-			Logger.Println(EventError(err.Error()))
+			l.Println(EventError(err.Error()))
 			if before != nil && after != nil {
 				after <- struct{}{}
 			}
@@ -267,7 +263,7 @@ func process(h Handlr, before, after chan struct{}) {
 		}
 
 		if ev == nil {
-			Logger.Fatal("BUG: Expected an event but got nil.")
+			l.Fatal("BUG: Expected an event but got nil.")
 		}
 
 		switch event := ev.(type) {

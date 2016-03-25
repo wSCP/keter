@@ -28,3 +28,5 @@ Godeps/*
 
 *.out
 coverage.html
+
+keter

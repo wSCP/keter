@@ -10,19 +10,14 @@ import (
 	"time"
 )
 
-var (
-	provided    *args
-	Logger      = log.New(os.Stderr, "KETER: ", log.Ldate|log.Lmicroseconds)
-	pkgVersion  *version
-	packageName string = "keter"
-	versionTag  string = "No version tag supplied with compilation"
-	versionHash string
-	versionDate string
-)
+var l *log.Logger
+
+var provided *args
 
 type args struct {
 	ConfigEnv   string
 	ConfigPath  string
+	ConfigFile  string
 	ChainExpiry time.Duration
 	Verbose     bool
 	Version     bool
@@ -32,6 +27,7 @@ func defaultArgs() *args {
 	return &args{
 		"XDG_CONFIG_HOME",
 		"keter/keterrc",
+		"",
 		2 * time.Second,
 		false,
 		false,
@@ -39,6 +35,9 @@ func defaultArgs() *args {
 }
 
 func (a *args) configPath() string {
+	if a.ConfigFile != "" {
+		return a.ConfigFile
+	}
 	var pth string
 	configHome := os.Getenv(a.ConfigEnv)
 	if configHome != "" {
@@ -53,7 +52,7 @@ func SignalHandler(h Handlr, s os.Signal) {
 	msg := new(bytes.Buffer)
 	switch s {
 	case syscall.SIGINT:
-		Logger.Println("SIGINT")
+		l.Println("SIGINT")
 		os.Exit(0)
 	case syscall.SIGHUP:
 		msg.WriteString("Got signal SIGHUP, reconfiguring....\n")
@@ -66,10 +65,10 @@ func SignalHandler(h Handlr, s os.Signal) {
 			msg.WriteString(fmt.Sprintf("error while configuring: %s\n", err))
 		}
 	default:
-		Logger.Println(fmt.Sprintf("received signal %v", s))
+		l.Println(fmt.Sprintf("received signal %v", s))
 	}
 	if provided.Verbose && msg.Len() != 0 {
-		Logger.Println(msg.String())
+		l.Println(msg.String())
 	}
 }
 
@@ -77,7 +76,7 @@ func parseArgs() {
 	c := defaultArgs()
 
 	flag.Usage = func() {
-		fmt.Printf("Usage: %s [options] <input directories>\n\n", os.Args[0])
+		fmt.Printf("Usage: %s [options]\n\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
@@ -85,21 +84,28 @@ func parseArgs() {
 		&c.ConfigEnv,
 		"configEnv",
 		c.ConfigEnv,
-		"Provide an env variable to locate the home directory of the configuration file. Default is 'XDG_CONFIG_HOME.'",
+		"Provide an environment variable to locate the home directory of the configuration file.",
 	)
 
 	flag.StringVar(
 		&c.ConfigPath,
 		"configPath",
 		c.ConfigPath,
-		"Provide the path of the config file in the config home directory. Default is 'keter/keterrc'",
+		"Provide the path of the config file in the config home directory.",
+	)
+
+	flag.StringVar(
+		&c.ConfigFile,
+		"configFile",
+		c.ConfigFile,
+		"Provide a full path to a configuration file, overrides configEnv & configPath",
 	)
 
 	flag.DurationVar(
 		&c.ChainExpiry,
 		"timeout",
 		c.ChainExpiry,
-		"Timeout in seconds for the recording of chord chains. Default is 2.",
+		"Timeout in seconds for the recording of chord chains.",
 	)
 
 	flag.BoolVar(
@@ -127,24 +133,25 @@ func parseArgs() {
 }
 
 func init() {
-	parseArgs()
+	l = log.New(os.Stderr, "KETER: ", log.Ldate|log.Lmicroseconds)
 	pkgVersion = newVersion(packageName, versionTag, versionHash, versionDate)
+	parseArgs()
 }
 
 func main() {
 	chains, err := LoadConfig(provided.configPath())
 	if err != nil {
-		Logger.Fatalf("configuration loading error: %s", err.Error())
+		l.Fatalf("configuration loading error: %s", err.Error())
 	}
 
 	hndl, err := NewHandlr("")
 	if err != nil {
-		Logger.Fatalf("handler configuration error: %s", err.Error())
+		l.Fatalf("handler configuration error: %s", err.Error())
 	}
 
 	err = Configure(hndl, chains)
 	if err != nil {
-		Logger.Fatalf("key chain configuration error: %s", err.Error())
+		l.Fatalf("key chain configuration error: %s", err.Error())
 	}
 
 	before, after, quit, signals := Loop(hndl)

@@ -2,6 +2,14 @@ package main
 
 import "fmt"
 
+var (
+	pkgVersion  *version
+	packageName string = "keter"
+	versionTag  string = "No version tag supplied with compilation"
+	versionHash string
+	versionDate string
+)
+
 func newVersion(p, t, h, d string) *version {
 	return &version{p, t, h, d}
 }
