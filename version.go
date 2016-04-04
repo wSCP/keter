@@ -6,8 +6,8 @@ var (
 	pkgVersion  *version
 	packageName string = "keter"
 	versionTag  string = "No version tag supplied with compilation"
-	versionHash string
-	versionDate string
+	versionHash string = "No hash"
+	versionDate string = "No date"
 )
 
 func newVersion(p, t, h, d string) *version {
@@ -20,10 +20,6 @@ type version struct {
 
 func (v *version) Fmt() string {
 	var msg string
-	if v.h != "" && v.d != "" {
-		msg = fmt.Sprintf("%s version %s(%s %s)\n", v.p, v.t, v.h, v.d)
-	} else {
-		msg = fmt.Sprintf("%s %s\n", v.p, v.t)
-	}
+	msg = fmt.Sprintf("%s version %s(%s %s)\n", v.p, v.t, v.h, v.d)
 	return msg
 }

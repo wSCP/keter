@@ -1,16 +1,18 @@
-package main
+package keys
 
 import (
 	"bytes"
 	"time"
 
 	"github.com/BurntSushi/xgb/xproto"
+	"github.com/wSCP/xandle/x"
 )
 
-func Configure(h Handlr, chains []Chain) error {
+func (k *Keys) ConfigureChains(chains []Chain) error {
 	var err error
 	for _, c := range chains {
-		err = c.Attach(h, h.Root())
+		c.Expiry(k.ChainExpiry)
+		err = c.Attach(k, k.Root())
 	}
 	if err != nil {
 		return err
@@ -27,7 +29,7 @@ type Chain interface {
 }
 
 type Detailable interface {
-	Mechanic() int
+	Mechanic() x.Xevent
 	Raw() string
 	String() string
 	Chained() string
@@ -37,11 +39,12 @@ type Activitable interface {
 	Clear()
 	Active() (int64, bool)
 	Activated() bool
+	Expiry(time.Duration)
 }
 
 type Keyable interface {
-	Attach(Handlr, xproto.Window) error
-	Run(Handlr, string) error
+	Attach(Handle, xproto.Window) error
+	Run(string) error
 }
 
 type Chainable interface {
@@ -59,17 +62,10 @@ type Commandable interface {
 	Command() *Cmd
 }
 
-const (
-	NoMechanic    = 1
-	KeyPress      = xproto.KeyPress
-	KeyRelease    = xproto.KeyRelease
-	ButtonPress   = xproto.ButtonPress
-	ButtonRelease = xproto.ButtonRelease
-)
-
 type chain struct {
-	mechanic int
+	mechanic x.Xevent
 	expires  int64
+	expiry   time.Duration
 	prev     Chain
 	next     Chain
 	khord    string
@@ -85,7 +81,7 @@ func (c *chain) expired() bool {
 }
 
 func (c *chain) touch() {
-	c.expires = time.Now().Add(time.Duration(provided.ChainExpiry) * time.Second).Unix()
+	c.expires = time.Now().Add(c.expiry).Unix()
 }
 
 func clear(c Chain) {
@@ -126,6 +122,10 @@ func (c *chain) Activated() bool {
 		return true
 	}
 	return false
+}
+
+func (c *chain) Expiry(d time.Duration) {
+	c.expiry = d
 }
 
 func (c *chain) Head() Chain {
@@ -175,31 +175,31 @@ func (c *chain) AddCommand(cmd *Cmd) {
 	c.command = cmd
 }
 
-func attach(c Chain, h Handlr, w xproto.Window) error {
+func attach(c Chain, h Handle, w xproto.Window) error {
 	switch c.Mechanic() {
-	case KeyPress, KeyRelease:
+	case x.KeyPressEvent, x.KeyReleaseEvent:
 		mods, keycodes, err := ParseKeyInput(h.Keyboard(), c.String())
 		if err != nil {
 			return err
 		}
 		for _, kc := range keycodes {
 			GrabKeyChecked(h.Conn(), w, mods, kc)
-			ky := mkInput(c.Mechanic(), w, mods, byte(kc), 0)
+			ky := mkCall(c.Mechanic(), w, mods, byte(kc), 0)
 			h.Put(ky, c)
 		}
-	case ButtonPress, ButtonRelease:
+	case x.ButtonPressEvent, x.ButtonReleaseEvent:
 		mods, button, err := ParseMouseInput(c.String())
 		if err != nil {
 			return err
 		}
 		MouseGrabChecked(h.Conn(), w, mods, button)
-		ky := mkInput(c.Mechanic(), w, mods, 0, byte(button))
+		ky := mkCall(c.Mechanic(), w, mods, 0, byte(button))
 		h.Put(ky, c)
 	}
 	return nil
 }
 
-func (c *chain) Attach(h Handlr, w xproto.Window) error {
+func (c *chain) Attach(h Handle, w xproto.Window) error {
 	var err error
 	err = attach(c, h, w)
 	if err != nil {
@@ -218,7 +218,7 @@ func (c *chain) Attach(h Handlr, w xproto.Window) error {
 	return nil
 }
 
-func (c *chain) Run(h Handlr, param string) error {
+func (c *chain) Run(param string) error {
 	c.touch()
 	if c.Activated() {
 		cmd := c.Command()
@@ -227,7 +227,7 @@ func (c *chain) Run(h Handlr, param string) error {
 	return nil
 }
 
-func (c *chain) Mechanic() int {
+func (c *chain) Mechanic() x.Xevent {
 	return c.mechanic
 }
 
@@ -267,9 +267,9 @@ func newChain(in []byte) *chain {
 	}
 }
 
-func chordMechanic(in []byte) (string, string, int) {
+func chordMechanic(in []byte) (string, string, x.Xevent) {
 	var chord, khord string
-	var mec int
+	var mec x.Xevent
 	var isRelease, isButton bool
 	if spl := bytes.Split(in, []byte("+")); spl[len(spl)-1][0] == RELEASE {
 		isRelease = true
@@ -288,25 +288,25 @@ func chordMechanic(in []byte) (string, string, int) {
 		s := string(in)
 		chord = s
 		khord = s
-		mec = KeyPress
+		mec = x.KeyPressEvent
 	case isRelease && !isButton:
 		chord = string(bytes.Map(cut, in))
 		khord = string(in)
-		mec = KeyRelease
+		mec = x.KeyReleaseEvent
 	case !isRelease && isButton:
 		s := string(in)
 		chord = s
 		khord = s
-		mec = ButtonPress
+		mec = x.ButtonPressEvent
 	case isRelease && isButton:
 		chord = string(bytes.Map(cut, in))
 		khord = string(in)
-		mec = ButtonRelease
+		mec = x.ButtonReleaseEvent
 	default:
 		s := string(in)
 		chord = s
 		khord = s
-		mec = KeyPress
+		mec = x.KeyPressEvent
 	}
 	return chord, khord, mec
 }

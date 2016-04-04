@@ -1,4 +1,4 @@
-package main
+package keys
 
 import (
 	"bufio"
@@ -20,23 +20,48 @@ const (
 	DASH         = byte('-')
 )
 
-func LoadConfig(f string) ([]Chain, error) {
+type Loader interface {
+	Load(string) ([]Chain, error)
+	Loaded() bool
+}
+
+type loader struct {
+	loaded bool
+}
+
+func newLoader() Loader {
+	return &loader{}
+}
+
+func DefaultLoader(k *Keys) error {
+	if k.Loader == nil {
+		k.Loader = newLoader()
+	}
+	return nil
+}
+
+func (l *loader) Load(f string) ([]Chain, error) {
 	file, err := os.Open(f)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 	reader := bufio.NewReader(file)
-	chains, err := parseConfig(reader)
+	chains, err := parseFile(reader)
 	if err != nil {
 		return nil, err
 	}
+	l.loaded = true
 	return chains, nil
+}
+
+func (l *loader) Loaded() bool {
+	return l.loaded
 }
 
 var ParseError = Krror("error parsing configuration: %s").Out
 
-func parseConfig(r *bufio.Reader) ([]Chain, error) {
+func parseFile(r *bufio.Reader) ([]Chain, error) {
 	var err error
 	o, err := parseOrders(r)
 	if err != nil {

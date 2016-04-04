@@ -25,9 +25,17 @@ is derived from data passed to the "ldflags" flag with [go build](https://golang
 
 Timeout in seconds for the recording of chord chains. Default is 2 seconds.
 
---config
+--env
 
-Read the keter main configuration from the given file
+Provide an environment variable for locating a directory containing a configuration file. The default value is 'XDG_CONFIG_HOME' 
+
+--path
+
+Provide a path relative env determined directory. The default is 'keter/keterrc' 
+
+--file
+
+Read the keter main configuration from the given file, overrides both env and path but no default value. 
 
 --verbose
 
@@ -38,7 +46,7 @@ Verbose logging of any messages, default is false.
 
 keter is a daemon that listens to keyboard events and execute commands.
 
-It reads its configuration file from $XDG_CONFIG_HOME/keter/keterrc by default, or from the given file if the --config option is used.
+It reads its configuration file from $XDG_CONFIG_HOME/keter/keterrc by default, or from the given file if the --file option is used.
 
 If keter receives a SIGUSR1 (resp. SIGUSR2) signal, it will reload its configuration file (resp. toggle the grabbing state of all its bindings).
 
@@ -54,7 +62,7 @@ Each line of the configuration file is interpreted as so:
     If it starts with a space, it is read as a command.
 
     Otherwise, it is read as a hotkey.
-
+<!--
 General syntax:
 
 ```
@@ -73,7 +81,7 @@ The keysym names are given by the output of **xev**.
 Hotkeys and commands can be spread across multiple lines by ending each partial line with a backslash character.
 
 When multiple chords are separated by semicolons, the hotkey is a chord chain: the command will only be executed after receiving each chord of the chain in consecutive order.
-
+-->
 <!--
 The colon character can be used instead of the semicolon to indicate that the chord chain shall not be aborted when the chain tail is reached.
 

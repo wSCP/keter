@@ -1,4 +1,4 @@
-package main
+package keys
 
 import (
 	"fmt"
@@ -158,7 +158,7 @@ func (k *Keyboard) StrToKeycode(str string) []xproto.Keycode {
 	return k.Keycodes(sym)
 }
 
-func NewKeyboard(s *xproto.SetupInfo, c *xgb.Conn) (*Keyboard, error) {
+func NewKeyboard(c *xgb.Conn, s *xproto.SetupInfo) (*Keyboard, error) {
 	min, max := minMaxKeycodeGet(s)
 	keymap, err := xproto.GetKeyboardMapping(c, min, byte(max-min+1)).Reply()
 	if err != nil {
